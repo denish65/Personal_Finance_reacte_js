@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+
 const csrfToken = window.csrfToken;
 
 function App() {
@@ -18,23 +19,21 @@ function App() {
     payment_status: "",
   });
 
-  // Define fetchExpenses outside useEffect to make it reusable
+  // Fetch expenses
   const fetchExpenses = async () => {
     try {
       const response = await axios.get("http://localhost:8000/api/admin/expense/show");
-      
-      setExpenses(response.data.Expense); // Assuming "Expense" is the key for the data array
+      setExpenses(response.data.Expense);
     } catch (error) {
       console.error("Error fetching expenses:", error);
     }
   };
 
-  // Call fetchExpenses in useEffect
   useEffect(() => {
     fetchExpenses();
   }, []);
 
-  // Handle form input changes
+  // Handle input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
@@ -52,20 +51,16 @@ function App() {
     const data = new FormData();
     Object.keys(formData).forEach((key) => {
       data.append(key, formData[key]);
-      
     });
-    console.log(data);
 
     try {
       await axios.post("http://localhost:8000/api/admin/addexpense", data, {
         headers: {
           "Content-Type": "multipart/form-data",
-          // "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content,
-          "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]')?.content || csrfToken, // Fallback if meta tag is null
-
+          "X-CSRF-TOKEN": csrfToken,
         },
       });
-      setModalOpen(false); // Close the modal
+      setModalOpen(false);
       setFormData({
         first_name: "",
         last_name: "",
@@ -78,9 +73,28 @@ function App() {
         payment_for: "",
         payment_status: "",
       });
-      fetchExpenses(); // Refresh expenses list
+      fetchExpenses();
     } catch (error) {
       console.error("Error adding expense:", error);
+    }
+  };
+
+  // Handle delete expense
+  const handleDeleteExpense = async (id) => {
+    const confirmed = window.confirm("Are you sure you want to delete this expense?");
+    if (!confirmed) return;
+
+    try {
+      await axios.post(`http://localhost:8000/api/admin/deleteExpense/${id}`, {}, {
+        headers: {
+          "X-CSRF-TOKEN": csrfToken,
+        },
+      });
+      alert("Expense deleted successfully!");
+      fetchExpenses(); // Refresh the expenses list
+    } catch (error) {
+      console.error("Error deleting expense:", error);
+      alert("An error occurred while deleting the expense.");
     }
   };
 
@@ -103,6 +117,7 @@ function App() {
               <th>Item Name</th>
               <th>Payment For</th>
               <th>Payment Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -125,6 +140,9 @@ function App() {
                 <td>{expense.item_name}</td>
                 <td>{expense.payment_for}</td>
                 <td>{expense.payment_status}</td>
+                <td>
+                  <button onClick={() => handleDeleteExpense(expense.id)}>Delete</button>
+                </td>
               </tr>
             ))}
           </tbody>
